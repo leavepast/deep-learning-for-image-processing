@@ -46,7 +46,7 @@ def main(args):
 
     batch_size = args.batch_size
     #nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    nw=3
+    nw=4
     print('Using {} dataloader workers every process'.format(nw))
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
@@ -67,30 +67,7 @@ def main(args):
     if args.weights != "":
         assert os.path.exists(args.weights), "weights file: '{}' not exist.".format(args.weights)
         weights_dict = torch.load(args.weights, map_location=device)
-        weights_res50_vit = torch.load('R50+ViT-B_16_imagenet21k_imagenet2012.pth',map_location=device)
-        weights_res50_vit = OrderedDict(weights_res50_vit)
-        for name in weights_res50_vit.keys():
-            if name.startswith("resnet"):
-                weights_dict[name] = weights_res50_vit[name]
-        # 删除不需要的权重
-        # del_keys = ['head.weight', 'head.bias'] if model.has_logits \
-        #     else ['pre_logits.fc.weight', 'pre_logits.fc.bias', 'head.weight', 'head.bias']
-        del_keys = ['head.weight', 'head.bias','patch_embed.proj.bias','patch_embed.proj.weight']
-        for k in del_keys:
-            del weights_dict[k]
         print(model.load_state_dict(weights_dict, strict=False))
-
-    if args.freeze_layers:
-        for name, para in model.named_parameters():
-            # 除head, pre_logits外，其他权重全部冻结
-
-
-            if "head" not in name and "pre_logits" not in name:
-                para.requires_grad_(False)
-            else:
-                print("training {}".format(name))
-            if name.startswith("resnet") or name.startswith("patch_embed.proj"):
-                para.requires_grad_(True)
     pg = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=5E-5)
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
@@ -135,14 +112,15 @@ if __name__ == '__main__':
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
                         #default="/home/xjw/Downloads/flower_photos")
-                        #default="/media/xjw/doc/00-ubuntu-files/cropped_train")
-                        default="/media/xjw/doc/00-ubuntu-files/cropped_train_augmentation")
+                        default="/media/xjw/doc/00-ubuntu-files/cropped_train")
+                        #default="/media/xjw/doc/00-ubuntu-files/cropped_train_augmentation")
     parser.add_argument('--model-name', default='', help='create model name')
     # 预训练权重路径，如果不想载入就设置为空字符
-    parser.add_argument('--weights', type=str, default='/media/xjw/doc/00-ubuntu-files/vit/model/vit_base_patch16_224.pth',
+    #.add_argument('--weights', type=str, default='/media/xjw/doc/00-ubuntu-files/vit/model/vit_base_patch16_224.pth',
+    parser.add_argument('--weights', type=str, default='/media/xjw/doc/00-ubuntu-files/vit/vit_base_patch16_224-res50-2-branch-log3/model-149.pth',
                         help='initial weights path')
     # 是否冻结权重
-    parser.add_argument('--freeze-layers', type=bool, default=True)
+    parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

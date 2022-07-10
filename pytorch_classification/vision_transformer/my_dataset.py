@@ -1,6 +1,7 @@
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
+import cv2
 
 
 class MyDataSet(Dataset):
@@ -23,7 +24,10 @@ class MyDataSet(Dataset):
 
         if self.transform is not None:
             img = self.transform(img)
-
+        #将图片转化为CIE-lab通道
+        img = img.permute(1, 2, 0).numpy()
+        img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        img = torch.from_numpy(img_lab).permute(2, 0, 1)
         return img, label
 
     @staticmethod
